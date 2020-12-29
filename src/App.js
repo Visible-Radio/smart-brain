@@ -8,11 +8,13 @@ import FaceRecognition from './components/FaceRecognition/FaceRecognition';
 import Signin from './components/Signin/Signin';
 import Register from './components/Register/Register';
 import './App.css';
-import Clarifai from 'clarifai';
 
-const app = new Clarifai.App({
- apiKey: 'b5bbef8b332d497e8ca62d532d15df47'
-});
+// moved to back end
+// import Clarifai from 'clarifai';
+
+// const app = new Clarifai.App({
+//  apiKey: 'b5bbef8b332d497e8ca62d532d15df47'
+// });
 
 const particlesOptions = {
   particles: {
@@ -26,23 +28,25 @@ const particlesOptions = {
   }
 }
 
+const initialState = {  
+  input: '',
+  imageUrl: '',
+  box: {},
+  route: 'signin',
+  isSignedIn: false,
+  user: {        
+    id: '',
+    name: '',
+    email: '',
+    entries: 0,
+    joined: ''
+  }
+}
+
 class App extends Component {
   constructor() {
     super();
-    this.state = {
-      input: '',
-      imageUrl: '',
-      box: {},
-      route: 'signin',
-      isSignedIn: false,
-      user: {        
-        id: '',
-        name: '',
-        email: '',
-        entries: 0,
-        joined: ''
-      }
-    }
+    this.state = initialState;
   }
 
   loadUser = (data) => {
@@ -57,8 +61,6 @@ class App extends Component {
   }
 
   calculateFaceLocation = (data) => {
-    console.log("calculateFaceLocation called");
-    console.log("API returned: ", data);   
     const clarifaiFace = (data.outputs[0].data.regions[0].region_info.bounding_box);    
     const image = document.getElementById('inputimage');    
     const width = Number(image.width);
@@ -77,12 +79,16 @@ class App extends Component {
   }
 
   onButtonSubmit = () => {
-    console.log('onButtonSubmit Called');
     this.setState({imageUrl: this.state.input});
-    app.models.predict(Clarifai.FACE_DETECT_MODEL,
-    this.state.input)
+    fetch('http://localhost:3000/imageurl', {
+      method: 'post',
+      headers: {'Content-type': 'application/json'},
+      body: JSON.stringify({
+        input: this.state.input
+      })
+    })
+    .then(response => response.json())
     .then(response => {
-
       //hit the entries update endpoint and get back the user's entry count
       if (response) {
         fetch('http://localhost:3000/image', {
@@ -96,7 +102,8 @@ class App extends Component {
         .then(count => {
           // Need to use Object.assign due to weirdness with nested objects inside the state object
           this.setState(Object.assign(this.state.user, {entries: count}))
-        });
+        })
+        .catch(console.log);
       }
 
       // update State with box coordinates from submitted image
@@ -107,9 +114,8 @@ class App extends Component {
   }
 
   onRouteChange = (route) => {
-    console.log('onRouteChange called');
     if (route === 'signin') {
-      this.setState({isSignedIn: false})
+      this.setState(initialState)
     } else if (route === 'home') {
       this.setState({isSignedIn: true})
     }
